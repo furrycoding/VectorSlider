@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29123.88
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VectorSlider", "VectorSlider\VectorSlider.csproj", "{C8DBF615-5142-47F9-A017-A4550DBBB539}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C8DBF615-5142-47F9-A017-A4550DBBB539}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8DBF615-5142-47F9-A017-A4550DBBB539}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C8DBF615-5142-47F9-A017-A4550DBBB539}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C8DBF615-5142-47F9-A017-A4550DBBB539}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {34593984-C728-4B3F-A04D-9E17BAE00748}
+	EndGlobalSection
+EndGlobal

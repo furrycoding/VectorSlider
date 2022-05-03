@@ -6,7 +6,7 @@ using GlmSharp;
 
 namespace VectorSlider
 {
-    internal class ParticleSystem
+    internal class ParticleSystem : Component, IRenderable
     {
         private int aliveParticles = 0;
         private List<Particle> particles;
@@ -49,7 +49,7 @@ namespace VectorSlider
             aliveParticles += count;
         }
 
-        public void PaintParticles(Graphics g)
+        public void Render(Graphics g)
         {
             if (particleDrawer == null)
                 return;
@@ -58,7 +58,7 @@ namespace VectorSlider
                 particleDrawer(g, particles[i]);
         }
 
-        public void Update(float dt)
+        public override void Update(float dt)
         {
             var i = 0;
             while (i < aliveParticles)

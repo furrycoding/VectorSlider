@@ -11,7 +11,8 @@ using GlmSharp;
 
 namespace VectorSlider
 {
-    class CarPhysics
+    // Класс, отвечающий за обработку ввода и передаче его классу физики
+    internal class CarInput : Component
     {
         // Ввод пользователя
         public bool forwards, backwards, left, right;
@@ -19,6 +20,71 @@ namespace VectorSlider
         // Обработка ввода
         public float InputSmoothing = 0.1f;
 
+        // Обработанный ввод пользователя
+        private bool inReverse;
+        private float turn, gas, brake;
+
+        private CarPhysics car;
+
+        public CarInput(CarPhysics car)
+        {
+            this.car = car;
+        }
+
+        protected override void OnInitialize()
+        {
+            World.Input.AddKeyBinding("car/forwards", Keys.W);
+            World.Input.AddKeyBinding("car/backwards", Keys.S);
+            World.Input.AddKeyBinding("car/left", Keys.A);
+            World.Input.AddKeyBinding("car/right", Keys.D);
+
+            World.Input.AddHanlder("car/forwards", doubleHandler: pressed => forwards = pressed);
+            World.Input.AddHanlder("car/backwards", doubleHandler: pressed => backwards = pressed);
+            World.Input.AddHanlder("car/left", doubleHandler: pressed => left = pressed);
+            World.Input.AddHanlder("car/right", doubleHandler: pressed => right = pressed);
+        }
+
+        public override void Update(float dt)
+        {
+            // Пруобразуем состояние кнопок влево/вправо в число -1, 0 или 1
+            var turnTarget = 0;
+            if (left) turnTarget -= 1;
+            if (right) turnTarget += 1;
+
+            // Преобразуем кнопки вперёд/назад в управление газом и тормозом
+            // Газ принимает значение 1(вперёд), 0(нет газа) и -1(назад)
+            var gasTarget = 0;
+            // Тормоз принимает значение либо 1, либо 0
+            var brakeTarget = 0;
+
+            if (forwards) gasTarget += 1;
+            if (backwards) gasTarget -= 1;
+            if (inReverse ? (gasTarget > 0) : (gasTarget < 0))
+            {
+                if (glm.LengthSqr(car.velocity) < 1e-4f)
+                    inReverse = !inReverse;
+                else
+                {
+                    gasTarget = 0;
+                    brakeTarget = 1;
+                }
+            }
+
+            // Сделаем ввод более плавным
+            var alpha = (float)Math.Pow(InputSmoothing, dt);
+            turn = alpha * turn + (1 - alpha) * turnTarget;
+            gas = alpha * gas + (1 - alpha) * gasTarget;
+            brake = alpha * brake + (1 - alpha) * brakeTarget;
+
+            car.turn = turn;
+            car.gas = gas;
+            car.brake = brake;
+        }
+    }
+
+    // Класс, отвечающий за саму физику машины, как она двигается и сталкивается
+    internal class CarPhysics : Component, IRenderable
+    {
         // Свойства машины
         public float TopSpeed = 8f;
         public float ReverseSpeed = 3f;
@@ -37,44 +103,18 @@ namespace VectorSlider
         public float rotation = 0;
         public int collidingCorner { get; private set; }
 
-        // Обработанный ввод пользователя
-        private bool inReverse;
-        private float turn, gas, brake;
+        // Управление машиной
+        public float turn, gas, brake;
+
+        private CarLevel level;
 
         public vec2 ForwardDirection => glm.Rotated(new vec2(1, 0), rotation);
         public vec2 Left => glm.Rotated(new vec2(0, 1), rotation);
 
-        private void ProcessInput(float dt)
+
+        public CarPhysics(CarLevel level)
         {
-            // Пруобразуем состояние кнопок влево/вправо в число -1, 0 или 1
-            var turnTarget = 0;
-            if (left) turnTarget -= 1;
-            if (right) turnTarget += 1;
-
-            // Преобразуем кнопки вперёд/назад в управление газом и тормозом
-            // Газ принимает значение 1(вперёд), 0(нет газа) и -1(назад)
-            var gasTarget = 0;
-            // Тормоз принимает значение либо 1, либо 0
-            var brakeTarget = 0;
-
-            if (forwards) gasTarget += 1;
-            if (backwards) gasTarget -= 1;
-            if (inReverse ? (gasTarget > 0) : (gasTarget < 0))
-            {
-                if (glm.LengthSqr(velocity) < 1e-4f)
-                    inReverse = !inReverse;
-                else
-                {
-                    gasTarget = 0;
-                    brakeTarget = 1;
-                }
-            }
-
-            // Сделаем ввод более плавным
-            var alpha = (float)Math.Pow(InputSmoothing, dt);
-            turn = alpha * turn + (1 - alpha) * turnTarget;
-            gas = alpha * gas + (1 - alpha) * gasTarget;
-            brake = alpha * brake + (1 - alpha) * brakeTarget;
+            this.level = level;
         }
 
         private bool Collide(CarLevel level)
@@ -111,10 +151,9 @@ namespace VectorSlider
             return true;
         }
 
-        public void Update(float dt, CarLevel level)
+        public override void Update(float dt)
         {
             var invDt = 1f / Math.Max(1e-4f, dt);
-            ProcessInput(dt);
 
             // Нам нужны векторы направленые вперёд и влево относительно машины
             var forward = ForwardDirection;
@@ -165,6 +204,15 @@ namespace VectorSlider
             velocity *= boostMultiplier;
         }
 
+        public void Render(Graphics g)
+        {
+            var pen1 = new Pen(Color.LimeGreen, 0.08f);
+
+            g.TranslateTransform(position.x, position.y);
+            g.RotateTransform(glm.Degrees(rotation));
+            g.DrawRectangle(pen1, -0.5f * Length, -0.5f * Width, Length, Width);
+        }
+
         public vec2[] GetWorldSpaceCorners()
         {
             var halfSize = 0.5f * new vec2(Length, Width);
@@ -180,7 +228,8 @@ namespace VectorSlider
         }
     }
 
-    class CarLevel
+    // Класс, отвечающий за уровень, в котором машина ездит и с которым сталкивается
+    internal class CarLevel : Component, IRenderable
     {
         private List<vec4> circles = new List<vec4>();
 
@@ -223,139 +272,108 @@ namespace VectorSlider
             
             return (minDistance, minDirection);
         }
+
+        public void Render(Graphics g)
+        {
+            var pen1 = new Pen(Color.LimeGreen, 0.08f);
+            var pen2 = new Pen(Color.Red, 0.1f);
+            var pen3 = new Pen(Color.Green, 0.1f);
+
+            g.DrawLine(pen2, 0f, 0f, 1f, 0f);
+            g.DrawLine(pen3, 0f, 0f, 0f, 1f);
+            foreach (var (pos, radius) in Circles)
+                g.DrawArc(pen1, pos.x - radius, pos.y - radius, 2 * radius, 2 * radius, 0, 360);
+        }
     }
 
-    class CarGame : Control
+    // Класс, отвечающий за камеру, следующую за машиной
+    internal class CarCamera : Component, ICamera
     {
-        private vec2 camPos;
-        private float camZoom = 0.1f;
+        public vec2 camPos = new vec2();
+        public float camZoom = 0.1f;
 
         private CarPhysics car;
-        private CarLevel level;
 
-        private ParticleSystem slidingDust;
-
-        private DeltaTime timer = new DeltaTime();
-        private bool forwards, backwards, left, right;
-
-        public CarGame()
+        public CarCamera(CarPhysics car)
         {
-            DoubleBuffered = true;
+            this.car = car;
+        }
 
-            level = new CarLevel();
-            level.AddCircle(new vec2(0, 0), 5, false);
-            level.AddCircle(new vec2(-2.5f, 0), 1.5f, true);
-            level.AddCircle(new vec2(-0.8f, 0.9f), 0.7f, true);
+        public void ApplyTransform(Graphics g)
+        {
+            var bounds = g.VisibleClipBounds;
+            var scale = bounds.Height * camZoom;
+            g.TranslateTransform(0.5f * bounds.Width, 0.5f * bounds.Height);
+            g.ScaleTransform(scale, scale);
+            g.TranslateTransform(-camPos.x, -camPos.y);
+        }
 
-            car = new CarPhysics();
-            car.position = new vec2(0f, 0f);
+        public override void Update(float dt)
+        {
+            camPos = 0.95f * camPos + 0.05f * car.position;
+        }
+    }
 
+    // Класс, отвечающий за частицы связанные с столкновением машины со стеной
+    internal class CarSlidingDust : Component
+    {
+        private ParticleSystem particles;
+
+        private CarPhysics car;
+
+        public CarSlidingDust(CarPhysics car)
+        {
+            this.car = car;
+        }
+
+        protected override void OnInitialize()
+        {
             var particleBrush = Brushes.LightGreen;
-            slidingDust = new ParticleSystem(
+            particles = World.AddComponent(new ParticleSystem(
                 (rng, p, pos, dir) =>
                 {
                     p.velocity = rng.Normal2(5 * dir.xy, new vec2(0.9f));
                     p.lifetime = rng.Normal(0.7f, 0.5f);
                 },
                 (g, p) =>
-                { 
+                {
                     var x = Math.Min(p.lifetime, 1);
                     var sz = 0.01f + 0.02f * x;
                     g.FillEllipse(particleBrush, p.position.x - sz, p.position.y - sz, 2 * sz, 2 * sz);
                 }
-            );
-
-            var a = new Timer();
-            a.Interval = 13;
-            a.Tick += (_, _1) => UpdateGame();
-            a.Enabled = true;
+            ));
         }
 
-        private void UpdateGame()
+        public override void Update(float dt)
         {
-            var dt = timer.GetDeltaTime();
-
-            car.forwards = forwards;
-            car.backwards = backwards;
-            car.left = left;
-            car.right = right;
-            car.Update(dt, level);
-
             if ((car.collidingCorner >= 0) && (car.velocity.LengthSqr > 25f))
             {
                 var corner = car.GetWorldSpaceCorners()[car.collidingCorner];
                 var dir = -car.velocity.Normalized;
                 var emitCount = (int)(1f * car.velocity.Length);
-                slidingDust.Emit(emitCount, corner, new vec4(dir));
-            }
-            slidingDust.Update(dt);
-
-            camPos = 0.95f * camPos + 0.05f * car.position;
-
-            Invalidate();
-        }
-
-        private void HandleKey(Keys key, bool pressed)
-        {
-            switch(key)
-            {
-                case Keys.W:
-                    forwards = pressed;
-                    break;
-                case Keys.S:
-                    backwards = pressed;
-                    break;
-                case Keys.A:
-                    left = pressed;
-                    break;
-                case Keys.D:
-                    right = pressed;
-                    break;
-                //default:
-                //    UpdateGame();
-                //    break;
+                particles.Emit(emitCount, corner, new vec4(dir));
             }
         }
+    }
 
-        protected override void OnKeyDown(KeyEventArgs e)
+    // Класс, инициализирующий все основные компоненты игры
+    internal class CarGame : Component
+    {
+        protected override void OnInitialize()
         {
-            base.OnKeyDown(e);
-            HandleKey(e.KeyCode, true);
-        }
+            var level = World.AddComponent<CarLevel>();
+            level.AddCircle(new vec2(0, 0), 5, false);
+            level.AddCircle(new vec2(-2.5f, 0), 1.5f, true);
+            level.AddCircle(new vec2(-0.8f, 0.9f), 0.7f, true);
 
-        protected override void OnKeyUp(KeyEventArgs e)
-        {
-            base.OnKeyUp(e);
-            HandleKey(e.KeyCode, false);
-        }
+            var car = World.AddComponent(new CarPhysics(level));
+            car.position = new vec2(0f, 0f);
 
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            base.OnPaint(e);
+            World.AddComponent(new CarCamera(car));
+            World.AddComponent(new CarSlidingDust(car));
+            World.AddComponent(new CarInput(car));
 
-            var g = e.Graphics;
-            var pen1 = new Pen(Color.LimeGreen, 0.08f);
-            var pen2 = new Pen(Color.Red, 0.1f);
-            var pen3 = new Pen(Color.Green, 0.1f);
-            var backgroundBrush = Brushes.Black;
-
-            g.FillRectangle(backgroundBrush, g.VisibleClipBounds);
-
-            var scale = Size.Height * camZoom;
-            g.TranslateTransform(0.5f * Size.Width, 0.5f * Size.Height);
-            g.ScaleTransform(scale, scale);
-            g.TranslateTransform(-camPos.x, -camPos.y);
-
-            g.DrawLine(pen2, 0f, 0f, 1f, 0f);
-            g.DrawLine(pen3, 0f, 0f, 0f, 1f);
-            foreach (var (pos, radius) in level.Circles)
-                g.DrawArc(pen1, pos.x-radius, pos.y-radius, 2*radius, 2*radius, 0, 360);
-
-            slidingDust.PaintParticles(g);
-
-            g.TranslateTransform(car.position.x, car.position.y);
-            g.RotateTransform(glm.Degrees(car.rotation));
-            g.DrawRectangle(pen1, -0.5f * car.Length, -0.5f * car.Width, car.Length, car.Width);
+            Destroy();
         }
     }
 }

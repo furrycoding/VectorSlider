@@ -1,6 +1,6 @@
 ﻿namespace VectorSlider
 {
-    partial class Form1
+    partial class WorldForm
     {
         /// <summary>
         /// Required designer variable.

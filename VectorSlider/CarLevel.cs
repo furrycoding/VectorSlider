@@ -20,8 +20,8 @@ namespace VectorSlider
     // position += direction * Math.Max(distance, 0);
     // Где position - текущее положение точки
     // direction и distance - значения, взятые из этого поля
-    
-    
+
+
     // Класс, отвечающий за уровень, в котором машина ездит и с которым сталкивается
     internal class OldCarLevel : Component, IRenderable, ICarLevel
     {
@@ -291,14 +291,14 @@ namespace VectorSlider
                 var v1 = line.NextTangent;
                 var angle0 = glm.Degrees((float)glm.Angle(v0));
                 var angle1 = glm.Degrees((float)glm.Angle(v1));
-            g.ScaleTransform(scale, scale);
+
                 if (line.Sign > 0)
                 {
                     var tmp = angle1;
                     angle1 = angle0;
                     angle0 = tmp;
                 }
-            foreach (var (pos, radius) in level.Circles)
+
                 angle0 = (angle0 + 270) % 360;
                 angle1 = (angle1 + 90) % 360;
 
@@ -310,7 +310,5 @@ namespace VectorSlider
     internal interface ICarLevel
     {
         (float, vec2) Collide(vec2 center, float radius);
-            g.DrawRectangle(pen1, -0.5f * car.Length, -0.5f * car.Width, car.Length, car.Width);
-        }
     }
 }
